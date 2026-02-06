@@ -1,41 +1,44 @@
 """Android Phone MCP Server
 
-通过 USB 调试控制 Android 真机。
-依赖: scrcpy (投屏), uiautomator2 (自动化)
+通过 USB 调试控制 Android 真机，支持 VLM 视觉控制。
+依赖: scrcpy (投屏), uiautomator2 (自动化), Pillow (图像处理)
 """
 
 import subprocess
-import asyncio
 import json
-import os
-from typing import Optional, Dict, Any, List
+import logging
+from typing import Optional, Dict, Any
 from mcp.server.fastmcp import FastMCP
+
+from src.android_phone.core.controller import AndroidController
+from src.android_phone.integrations.volcengine import VolcengineGUIClient
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastMCP("android-phone-mcp")
 
-# 全局设备引用
-_device: Optional[Any] = None
-_scrcpy_process: Optional[Any] = None
+# Global Controller & Client
+controller = AndroidController()
+volcengine_client = VolcengineGUIClient()
 
-
-def get_uiautomator2():
-    """获取 uiautomator2 设备实例"""
-    global _device
-    try:
-        import uiautomator2 as u2
-        if _device is None:
-            _device = u2.connect()
-        return _device
-    except Exception as e:
-        raise ConnectionError(f"连接 Android 设备失败: {e}")
-
+_scrcpy_process: Optional[subprocess.Popen] = None
 
 @app.tool()
-def connect() -> str:
-    """连接 Android 真机 (USB 调试模式)"""
+def connect(serial: str = None) -> str:
+    """
+    连接 Android 设备.
+    
+    Args:
+        serial: 设备序列号 (可选). 如果为空，连接第一个可用设备.
+    """
     try:
-        device = get_uiautomator2()
-        info = device.info
+        if serial:
+            controller.serial = serial
+        
+        controller.connect()
+        info = controller.get_info()
         
         return json.dumps({
             "status": "connected",
@@ -44,193 +47,226 @@ def connect() -> str:
             "manufacturer": info.get("product", "Unknown"),
         }, ensure_ascii=False, indent=2)
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 @app.tool()
-def disconnect() -> str:
-    """断开 Android 真机连接"""
-    global _device, _scrcpy_process
-    _device = None
+def get_screen_state(include_xml: bool = False, compact_xml: bool = True, scale: float = 1.0) -> str:
+    """
+    获取当前屏幕状态 (截图 + 可选 XML).
+    Agent 应该在每次操作前调用此工具来观察环境.
     
-    if _scrcpy_process:
-        try:
-            _scrcpy_process.terminate()
-        except:
-            pass
-        _scrcpy_process = None
+    Args:
+        include_xml: 是否包含 UI 树.
+        compact_xml: 是否简化 UI 树 (默认 True).
+        scale: 截图缩放比例 (0.1 - 1.0), 默认 1.0. 调小可以节省 Token.
     
-    return json.dumps({
-        "status": "disconnected"
-    }, ensure_ascii=False)
-
-
-@app.tool()
-def click(x: int, y: int) -> str:
-    """点击屏幕坐标"""
+    Returns:
+        JSON string containing:
+        - image: Base64 encoded JPEG image (resized to max 1080p).
+        - xml: UI hierarchy XML string (if include_xml is True).
+        - info: Device info (width, height, etc).
+    """
     try:
-        device = get_uiautomator2()
-        device.click(x, y)
-        return json.dumps({
+        image_b64 = controller.get_screenshot(scale=scale)
+        result = {
             "status": "ok",
-            "action": "click",
-            "position": {"x": x, "y": y}
-        }, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
-
-@app.tool()
-def swipe(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
-    """滑动屏幕"""
-    try:
-        device = get_uiautomator2()
-        device.swipe(x1, y1, x2, y2, duration)
-        return json.dumps({
-            "status": "ok",
-            "action": "swipe",
-            "from": {"x": x1, "y": y1},
-            "to": {"x": x2, "y": y2}
-        }, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
-
-@app.tool()
-def input_text(text: str) -> str:
-    """输入文本"""
-    try:
-        device = get_uiautomator2()
-        device.clear_text()
-        device.send_keys(text)
-        return json.dumps({
-            "status": "ok",
-            "action": "input",
-            "text": text
-        }, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
-
-@app.tool()
-def press(key: str) -> str:
-    """按下物理按键"""
-    try:
-        device = get_uiautomator2()
-        key_map = {
-            "home": device.press("home"),
-            "back": device.press("back"),
-            "menu": device.press("menu"),
-            "power": device.press("power"),
-            "volume_up": device.press("volumeup"),
-            "volume_down": device.press("volumedown"),
+            "image": image_b64,
+            "info": controller.get_info()
         }
-        action = key_map.get(key.lower())
-        if action is None:
-            return json.dumps({
-                "status": "error",
-                "message": f"未知按键: {key}"
-            }, ensure_ascii=False)
         
-        return json.dumps({
-            "status": "ok",
-            "action": "press",
-            "key": key
-        }, ensure_ascii=False)
+        if include_xml:
+            if compact_xml:
+                result["xml"] = controller.get_compact_ui_hierarchy()
+            else:
+                result["xml"] = controller.get_ui_hierarchy()
+            
+        return json.dumps(result, ensure_ascii=False)
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 @app.tool()
-def screenshot(path: str = "/tmp/android_phone_screen.png") -> str:
-    """截图"""
-    try:
-        device = get_uiautomator2()
-        device.screenshot(path)
-        
-        # 检查文件是否存在
-        if os.path.exists(path):
-            file_size = os.path.getsize(path)
-            return json.dumps({
-                "status": "ok",
-                "path": path,
-                "size": file_size
-            }, ensure_ascii=False)
-        else:
-            return json.dumps({
-                "status": "error",
-                "message": "截图文件未生成"
-            }, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
+def tap_element(text: str = None, resource_id: str = None) -> str:
+    """
+    点击 UI 元素 (通过文本或 ID). 比坐标点击更稳定.
+    
+    Args:
+        text: 元素文本 (例如 "微信", "发送").
+        resource_id: 元素资源ID (例如 "com.tencent.mm:id/text").
+    """
+    if controller.click_element(text=text, resource_id=resource_id):
+        return json.dumps({"status": "ok", "action": "tap_element", "target": {"text": text, "id": resource_id}}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": "Failed to find or click element"}, ensure_ascii=False)
 
 @app.tool()
-def get_info() -> str:
-    """获取设备信息"""
-    try:
-        device = get_uiautomator2()
-        info = device.info
+def ask_volcengine_agent(instruction: str) -> str:
+    """
+    将当前屏幕和指令发送给火山引擎 GUI Agent 模型，获取操作建议.
+    
+    注意: 需要设置 ARK_API_KEY 环境变量.
+    
+    Args:
+        instruction: 你的指令 (例如: "打开微信发送消息").
         
+    Returns:
+        模型的回复 (JSON). 通常包含对屏幕的分析和建议的下一步动作.
+    """
+    try:
+        # 1. Capture screen
+        image_b64 = controller.get_screenshot(quality=60, max_size=(720, 1280)) # Optimize for API
+        
+        # 2. Call Volcengine API
+        response = volcengine_client.ask(instruction, image_b64)
+        
+        # 3. Return raw response (Agent can parse it)
         return json.dumps({
             "status": "ok",
-            "info": info
+            "model_response": response
         }, ensure_ascii=False)
+        
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
+@app.tool()
+def reset_volcengine_session() -> str:
+    """
+    清空火山引擎 GUI Agent 的多轮对话历史.
+    当开始一个新的任务时，建议先调用此工具.
+    """
+    try:
+        volcengine_client.reset_session()
+        return json.dumps({"status": "ok", "message": "Session reset successfully"}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
+
+@app.tool()
+def tap(x: int, y: int, normalized: bool = False) -> str:
+    """
+    点击屏幕坐标.
+    
+    Args:
+        x: X 坐标
+        y: Y 坐标
+        normalized: 如果为 True, 坐标应为 0-1000 的归一化坐标.
+    """
+    if normalized:
+        x, y = controller.denormalize_coordinates(x, y)
+        
+    if controller.click(x, y):
+        return json.dumps({"status": "ok", "action": "tap", "position": {"x": x, "y": y}}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": "Failed to tap"}, ensure_ascii=False)
+
+@app.tool()
+def swipe(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5, normalized: bool = False) -> str:
+    """
+    滑动屏幕.
+    
+    Args:
+        x1, y1: 起始坐标
+        x2, y2: 结束坐标
+        duration: 持续时间 (秒)
+        normalized: 如果为 True, 坐标应为 0-1000 的归一化坐标.
+    """
+    if normalized:
+        x1, y1 = controller.denormalize_coordinates(x1, y1)
+        x2, y2 = controller.denormalize_coordinates(x2, y2)
+
+    if controller.swipe(x1, y1, x2, y2, duration):
+        return json.dumps({"status": "ok", "action": "swipe"}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": "Failed to swipe"}, ensure_ascii=False)
+
+@app.tool()
+def input_text(text: str, clear: bool = True) -> str:
+    """
+    输入文本. 确保输入框已获取焦点.
+    
+    Args:
+        text: 要输入的文本
+        clear: 是否先清空输入框 (默认 True)
+    """
+    if controller.input_text(text, clear):
+        return json.dumps({"status": "ok", "action": "input", "text": text}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": "Failed to input text"}, ensure_ascii=False)
+
+@app.tool()
+def press_key(key: str) -> str:
+    """
+    按下物理按键.
+    
+    Args:
+        key: home, back, recent, enter, delete, volume_up, volume_down, power
+    """
+    if controller.press_key(key):
+        return json.dumps({"status": "ok", "action": "press_key", "key": key}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": f"Failed to press key {key}"}, ensure_ascii=False)
+
+@app.tool()
+def launch_app(package_name: str) -> str:
+    """
+    启动应用.
+    
+    Args:
+        package_name: 应用包名 (例如 com.tencent.mm)
+    """
+    if controller.launch_app(package_name):
+        return json.dumps({"status": "ok", "action": "launch_app", "package": package_name}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": f"Failed to launch {package_name}"}, ensure_ascii=False)
+
+@app.tool()
+def stop_app(package_name: str) -> str:
+    """
+    停止应用.
+    
+    Args:
+        package_name: 应用包名
+    """
+    if controller.stop_app(package_name):
+        return json.dumps({"status": "ok", "action": "stop_app", "package": package_name}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": f"Failed to stop {package_name}"}, ensure_ascii=False)
+
+@app.tool()
+def list_apps() -> str:
+    """
+    列出已安装的第三方应用包名.
+    """
+    apps = controller.list_apps()
+    return json.dumps({"status": "ok", "apps": apps}, ensure_ascii=False)
+
+@app.tool()
+def unlock_device() -> str:
+    """
+    尝试唤醒并解锁屏幕.
+    """
+    if controller.unlock_device():
+        return json.dumps({"status": "ok", "action": "unlock"}, ensure_ascii=False)
+    else:
+        return json.dumps({"status": "error", "message": "Failed to unlock"}, ensure_ascii=False)
+
+# --- Legacy / Utility Tools ---
 
 @app.tool()
 def start_scrcpy() -> str:
-    """启动 scrcpy 投屏"""
+    """启动 scrcpy 投屏 (用于人工观察)"""
     global _scrcpy_process
     try:
-        # 检查 scrcpy 是否可用
         result = subprocess.run(["which", "scrcpy"], capture_output=True, text=True)
         if result.returncode != 0:
-            return json.dumps({
-                "status": "error",
-                "message": "scrcpy 未安装"
-            }, ensure_ascii=False)
+            return json.dumps({"status": "error", "message": "scrcpy 未安装"}, ensure_ascii=False)
         
-        # 启动 scrcpy (无头模式用于自动化)
         _scrcpy_process = subprocess.Popen(
             ["scrcpy", "--turn-screen-off"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        
-        return json.dumps({
-            "status": "ok",
-            "message": "scrcpy 已启动"
-        }, ensure_ascii=False)
+        return json.dumps({"status": "ok", "message": "scrcpy started"}, ensure_ascii=False)
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 @app.tool()
 def stop_scrcpy() -> str:
@@ -240,17 +276,9 @@ def stop_scrcpy() -> str:
         if _scrcpy_process:
             _scrcpy_process.terminate()
             _scrcpy_process = None
-        
-        return json.dumps({
-            "status": "ok",
-            "message": "scrcpy 已停止"
-        }, ensure_ascii=False)
+        return json.dumps({"status": "ok", "message": "scrcpy stopped"}, ensure_ascii=False)
     except Exception as e:
-        return json.dumps({
-            "status": "error",
-            "message": str(e)
-        }, ensure_ascii=False)
-
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 if __name__ == "__main__":
     app.run()

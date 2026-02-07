@@ -271,7 +271,28 @@ class AndroidController:
                 # Use the valid key name
                 key = key_lower
             
-            self.device.press(key)
+            # Use adb shell input keyevent for standard keys if u2 fails or as fallback/default
+            # Actually u2.press() supports key names like 'home', 'back'. 
+            # But let's map to keycodes for robustness if needed.
+            
+            keycode_map = {
+                'home': 3,
+                'back': 4,
+                'menu': 82,
+                'enter': 66,
+                'delete': 67,
+                'search': 84,
+                'power': 26,
+                'volume_up': 24,
+                'volume_down': 25,
+                'camera': 27
+            }
+            
+            if key_lower in keycode_map:
+                self.device.shell(f"input keyevent {keycode_map[key_lower]}")
+            else:
+                self.device.press(key)
+                
             return True
         except Exception as e:
             logger.error(f"Press key failed: {e}")

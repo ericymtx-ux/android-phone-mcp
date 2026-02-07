@@ -245,9 +245,31 @@ class AndroidController:
             valid_keys = ['home', 'back', 'left', 'right', 'up', 'down', 'center', 
                           'menu', 'search', 'enter', 'delete', 'recent', 'volume_up', 'volume_down', 'camera', 'power']
             
-            if key not in valid_keys:
+            # Normalize key name
+            key_lower = key.lower().strip()
+            
+            # Common mappings for Chinese or variations
+            mappings = {
+                "home键": "home",
+                "主页": "home",
+                "主页键": "home",
+                "返回": "back",
+                "返回键": "back",
+                "回车": "enter",
+                "搜索": "search",
+                "菜单": "menu"
+            }
+            
+            if key_lower in mappings:
+                key_lower = mappings[key_lower]
+            
+            if key_lower not in valid_keys:
                  # Try passing it directly, u2 might support key codes
+                 # If it's a known mapped key but not in valid_keys list (unlikely if mappings cover it)
                  pass
+            else:
+                # Use the valid key name
+                key = key_lower
             
             self.device.press(key)
             return True

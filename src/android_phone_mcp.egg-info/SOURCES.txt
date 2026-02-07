@@ -1,0 +1,14 @@
+README.md
+setup.py
+src/android_phone/__init__.py
+src/android_phone/main.py
+src/android_phone/server.py
+src/android_phone_mcp.egg-info/PKG-INFO
+src/android_phone_mcp.egg-info/SOURCES.txt
+src/android_phone_mcp.egg-info/dependency_links.txt
+src/android_phone_mcp.egg-info/entry_points.txt
+src/android_phone_mcp.egg-info/requires.txt
+src/android_phone_mcp.egg-info/top_level.txt
+tests/test_controller.py
+tests/test_parser.py
+tests/test_server.py

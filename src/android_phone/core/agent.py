@@ -117,14 +117,10 @@ class AutonomousAgent:
                 
             elif action_type == "screenshot":
                 filename = action_data.get("filename")
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                
                 if not filename:
-                    filename = f"screenshot_{timestamp}.png"
-                else:
-                    # Strip extension
-                    base_name = os.path.splitext(filename)[0]
-                    filename = f"{base_name}_{timestamp}.png"
+                    filename = f"screenshot_{int(time.time())}.png"
+                elif not filename.endswith('.png') and not filename.endswith('.jpg'):
+                    filename = f"{filename}.png"
                 
                 # Force save to screenshot_dir
                 save_path = os.path.join(self.screenshot_dir, os.path.basename(filename))
@@ -144,8 +140,8 @@ class AutonomousAgent:
             # Update instruction for next turn
             instruction = f"Action '{action_type}' executed. Result: {result_msg}. Continue to {goal}."
             
-            # Short wait for UI to settle (random 0.5-3.5s)
-            sleep_time = random.uniform(0.5, 3.5)
+            # Short wait for UI to settle (random 1-3s)
+            sleep_time = random.uniform(1.0, 3.0)
             logger.info(f"Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 

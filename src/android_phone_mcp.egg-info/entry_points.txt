@@ -1,0 +1,2 @@
+[console_scripts]
+android-agent = android_phone.main:main

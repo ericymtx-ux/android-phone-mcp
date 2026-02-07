@@ -4,7 +4,7 @@
 
 ## 🌟 核心特性
 
-- **设备控制**: 继承自 `phone-mcp` 的强大控制能力，支持电话、短信、媒体、应用管理等。
+- **设备控制**: 支持点击、滑动、输入文本、物理按键等基础操作。
 - **智能感知**: 提供截图压缩、XML 简化 (Compact XML) 功能，优化 VLM 识别效率。
 - **AI 增强**: 内置火山引擎 GUI Agent 集成，支持自然语言指令控制（如"打开微信发消息"）。
 - **坐标自适应**: 支持 0-1000 归一化坐标，适配不同分辨率设备。
@@ -89,9 +89,9 @@ uvx fastmcp run src/android_phone/server.py
 - **文档**: [Skill 使用指南](docs/usage/skill_guide_zh.md)
 - **能力**: 支持自然语言驱动的 Android 手机自主操作。
 
-## 📚 参考项目
+## 📚 开发进度
 
-本项目的基础设备控制能力参考并使用了 [phone-mcp](https://github.com/hao-cyber/phone-mcp) 的功能。
+详见 [开发进度文档](docs/status/roadmap.md)。
 
 ## 🧪 测试
 

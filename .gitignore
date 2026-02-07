@@ -1,9 +1,3 @@
 .env
 __pycache__/
 *.pyc
-*.egg-info/
-.active_screenshots/
-.claude/
-.DS_Store
-dist/
-build/

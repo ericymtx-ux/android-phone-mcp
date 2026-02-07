@@ -58,7 +58,7 @@ class AndroidController:
         y = int((norm_y / scale) * h)
         return (x, y)
 
-    def get_screenshot(self, quality: int = 70, max_size: Tuple[int, int] = (1080, 1920), scale: float = 1.0) -> str:
+    def get_screenshot(self, quality: int = 70, max_size: Tuple[int, int] = (1080, 1920), scale: float = 1.0, save_path: str = None) -> str:
         """
         Capture screenshot and return as base64 string.
         
@@ -66,6 +66,7 @@ class AndroidController:
             quality: JPEG quality (1-100).
             max_size: Max (width, height) to resize to. Preserves aspect ratio.
             scale: Scaling factor (0.1 to 1.0). Applied BEFORE max_size constraint.
+            save_path: If provided, save the screenshot to this path (PNG or JPEG).
         """
         try:
             # uiautomator2 returns PIL Image by default with format='pillow'
@@ -78,6 +79,11 @@ class AndroidController:
             # Temporary file approach is safest across versions, but slow.
             # Let's try in-memory.
             image = self.device.screenshot(format='pillow')
+            
+            # Save original if requested
+            if save_path:
+                image.save(save_path)
+                logger.info(f"Screenshot saved to {save_path}")
             
             # Apply scale first if needed
             if scale < 1.0 and scale > 0:

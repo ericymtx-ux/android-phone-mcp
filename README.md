@@ -8,6 +8,7 @@
 - **智能感知**: 提供截图压缩、XML 简化 (Compact XML) 功能，优化 VLM 识别效率。
 - **AI 增强**: 内置火山引擎 GUI Agent 集成，支持自然语言指令控制（如"打开微信发消息"）。
 - **坐标自适应**: 支持 0-1000 归一化坐标，适配不同分辨率设备。
+- **自主任务**: **[NEW]** 支持自主任务执行 (`run_autonomous_task`)，只需一句指令，Agent 自动观察、思考、操作直至完成。
 
 ## 🚀 快速开始
 
@@ -21,29 +22,51 @@ pip install -r requirements.txt
 brew install android-platform-tools scrcpy
 ```
 
-### 2. 配置环境变量 (可选)
+### 2. 配置环境变量
 
-如果你需要使用火山引擎的 GUI Agent 功能，请设置 API Key：
+需要设置 `ARK_API_KEY` 以启用火山引擎视觉能力。
 
 ```bash
-export ARK_API_KEY="你的_API_KEY"
+# 复制示例配置
+cp .env.example .env
+
+# 编辑 .env 填入你的 Key
+# ARK_API_KEY=sk-xxxx
 ```
 
-### 3. 运行 Server
+### 3. 安装与运行
+
+推荐使用 `pip install -e .` 安装项目，获得 `android-agent` 命令行工具。
 
 ```bash
-# 开发模式运行
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-python3 src/android_phone/server.py
+# 1. 安装项目 (Editable模式)
+pip install -e .
+
+# 2. 运行自主任务 (CLI 方式)
+android-agent run "打开通达信，找到上证指数"
+
+# 3. 运行 MCP Server
+android-agent server
+```
+
+或者使用 `uvx` 快速运行 Server:
+
+```bash
+uvx fastmcp run src/android_phone/server.py
 ```
 
 ## 🛠️ 工具列表
+
+### 自主智能体 (Autonomous Agent)
+| 工具 | 参数 | 说明 |
+|------|------|------|
+| `run_autonomous_task` | goal, max_steps | **全自动执行**。输入自然语言目标（如“打开通达信看上证指数”），Agent 自动闭环操作。 |
 
 ### 基础控制
 | 工具 | 参数 | 说明 |
 |------|------|------|
 | `connect` | serial (可选) | 连接设备 |
-| `get_screen_state` | compact_xml, scale | **核心**。获取截图和 UI 树。 |
+| `get_screen_state` | compact_xml, scale | 获取截图和 UI 树。 |
 | `tap` | x, y, normalized | 点击 (支持归一化坐标) |
 | `tap_element` | text / resource_id | 智能点击 (根据文本或 ID) |
 | `swipe` | x1, y1, x2, y2, normalized | 滑动 |
@@ -52,11 +75,19 @@ python3 src/android_phone/server.py
 | `list_apps` | - | 列出第三方应用 |
 | `unlock_device` | - | 尝试解锁屏幕 |
 
-### AI Agent 集成
+### AI Agent 集成 (低级 API)
 | 工具 | 参数 | 说明 |
 |------|------|------|
-| `ask_volcengine_agent` | instruction | 发送指令给火山引擎 GUI 模型，获取操作建议 |
+| `ask_volcengine_agent` | instruction | 单步询问火山引擎 GUI 模型 |
 | `reset_volcengine_session` | - | 重置多轮对话历史 |
+
+## 🤖 Skill 集成
+
+本项目已包含 Claude Code Skill 定义，可作为 Skill 自动加载。
+
+- **位置**: `skills/android-autonomous-agent/`
+- **文档**: [Skill 使用指南](docs/usage/skill_guide_zh.md)
+- **能力**: 支持自然语言驱动的 Android 手机自主操作。
 
 ## 📚 开发进度
 
@@ -66,23 +97,8 @@ python3 src/android_phone/server.py
 
 ```bash
 # 运行所有测试
-cd tests && python3 -m pytest -v
-
-# 或从项目根目录运行
 python3 -m pytest tests/ -v
-
-# 运行连接验证脚本
-python3 scripts/verify_device.py
 ```
-
-### 测试覆盖
-
-| 模块 | 测试文件 | 测试数 | 状态 |
-|------|----------|--------|------|
-| Parser | test_parser.py | 17 | ✅ 100% |
-| Controller | test_controller.py | 2 | ✅ 100% |
-| Server | test_server.py | 2 | ✅ 100% |
-| **总计** | | **21** | **✅** |
 
 ### 火山引擎 Action Parser
 
@@ -93,11 +109,8 @@ Thought: <思考过程>
 Action: <动作>(<参数>)
 ```
 
-**支持的动作用于**:
-- `click(point='<point>x y</point>')` - 点击坐标
-- `type(content='文本')` - 输入文本
-- `swipe(direction='up|down|left|right')` - 滑动
-- `drag(start_point='<point>x y</point>', end_point='<point>x y</point>')` - 拖拽
-- `hotkey(key='enter')` - 快捷键
-- `finished(content='结果')` - 任务完成
-```
+**CLI 输入输出**:
+- `android-agent run` 支持自然语言指令。
+- 执行过程中会实时打印 "Thought"（思考过程）和 "Action"（执行动作）。
+- 如果任务涉及截图，截图文件会自动保存到 `.active_screenshots/` 目录。
+- 任务完成后，CLI 会返回最终结果文本。

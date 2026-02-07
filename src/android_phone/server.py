@@ -8,10 +8,15 @@ import subprocess
 import json
 import logging
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
-from src.android_phone.core.controller import AndroidController
-from src.android_phone.integrations.volcengine import VolcengineGUIClient
+from android_phone.core.controller import AndroidController
+from android_phone.integrations.volcengine import VolcengineGUIClient
+from android_phone.core.agent import AutonomousAgent
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,8 +27,25 @@ app = FastMCP("android-phone-mcp")
 # Global Controller & Client
 controller = AndroidController()
 volcengine_client = VolcengineGUIClient()
+agent = AutonomousAgent(controller, volcengine_client)
 
 _scrcpy_process: Optional[subprocess.Popen] = None
+
+@app.tool()
+def run_autonomous_task(goal: str, max_steps: int = 50) -> str:
+    """
+    运行自主任务.
+    Agent 会自动: 截图 -> 分析 -> 操作 -> 循环, 直到完成任务.
+    
+    Args:
+        goal: 任务目标 (例如 "打开通达信 app，找到上证指数页面，返回 K 线图").
+        max_steps: 最大尝试步数 (默认 50).
+    """
+    try:
+        result = agent.run(goal, max_steps)
+        return json.dumps({"status": "ok", "result": result}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
 @app.tool()
 def connect(serial: str = None) -> str:

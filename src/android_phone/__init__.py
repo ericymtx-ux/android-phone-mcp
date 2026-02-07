@@ -1,5 +1,7 @@
 """Android Phone MCP Server"""
 
-from .server import app
-
-__all__ = ["app"]
+try:
+    from .server import app
+    __all__ = ["app"]
+except ImportError:
+    pass

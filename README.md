@@ -109,6 +109,16 @@ Thought: <思考过程>
 Action: <动作>(<参数>)
 ```
 
+**支持的动作**:
+- `click(point='<point>x y</point>')` - 点击坐标
+- `type(content='文本')` - 输入文本
+- `swipe(direction='up|down|left|right')` - 滑动
+- `drag(start_point='<point>x y</point>', end_point='<point>x y</point>')` - 拖拽
+- `hotkey(key='home|back|enter')` - 物理按键（支持返回桌面、返回上一级等）
+- `screenshot(filename='文件名.png')` - 截图
+- `finished(content='结果')` - 任务完成
+
+
 **CLI 输入输出**:
 - `android-agent run` 支持自然语言指令。
 - 执行过程中会实时打印 "Thought"（思考过程）和 "Action"（执行动作）。

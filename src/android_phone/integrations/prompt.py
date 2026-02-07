@@ -17,12 +17,12 @@ click(point='<point>x1 y1</point>')
 left_double(point='<point>x1 y1</point>')
 right_single(point='<point>x1 y1</point>')
 drag(start_point='<point>x1 y1</point>', end_point='<point>x2 y2</point>')
-hotkey(key='ctrl c') # Split keys with a space and use lowercase.
+hotkey(key='home') # Press the home key to go back to the desktop. Supports: home, back, recent.
 type(content='xxx') # Use escape characters \\', \\", and \\n in content part.
 scroll(point='<point>x1 y1</point>', direction='down or up or right or left')
 wait() # Sleep for 5s and take a screenshot to check for any changes.
 screenshot(filename='screenshot.png') # Take a screenshot and save it to the local device.
-finished(content='xxx') # Task completed.
+finished(content='xxx') # Task completed. If the task cannot be completed due to indecision or error, explicitly state the reason in the content.
 
 ## Note
 - You will be given a screenshot of the current screen.

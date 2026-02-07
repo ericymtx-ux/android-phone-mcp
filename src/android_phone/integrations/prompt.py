@@ -17,7 +17,7 @@ click(point='<point>x1 y1</point>')
 left_double(point='<point>x1 y1</point>')
 right_single(point='<point>x1 y1</point>')
 drag(start_point='<point>x1 y1</point>', end_point='<point>x2 y2</point>')
-hotkey(key='ctrl c') # Split keys with a space and use lowercase.
+hotkey(key='home') # Press the home key to go back to the desktop. Supports: home, back, recent.
 type(content='xxx') # Use escape characters \\', \\", and \\n in content part.
 scroll(point='<point>x1 y1</point>', direction='down or up or right or left')
 wait() # Sleep for 5s and take a screenshot to check for any changes.

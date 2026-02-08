@@ -1,8 +1,10 @@
 Metadata-Version: 2.4
 Name: android-phone-mcp
 Version: 0.1.0
+License-File: LICENSE
 Requires-Dist: uiautomator2>=3.0.0
 Requires-Dist: httpx>=0.25.0
 Requires-Dist: Pillow>=10.0.0
 Requires-Dist: python-dotenv>=1.0.0
+Dynamic: license-file
 Dynamic: requires-dist

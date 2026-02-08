@@ -142,10 +142,12 @@ class VolcengineGUIClient:
                 
                 resp_json = response.json()
                 content = resp_json['choices'][0]['message']['content']
+                usage = resp_json.get('usage', {})
                 
                 # Parse the response
                 parsed_result = parse_action_from_text(content)
                 parsed_result["raw_content"] = content
+                parsed_result["usage"] = usage
                 
                 # Update history
                 self.history.append(new_user_msg)

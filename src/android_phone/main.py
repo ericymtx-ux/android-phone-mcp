@@ -12,7 +12,7 @@ from android_phone.core.agent import AutonomousAgent
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("AndroidPhoneCLI")
 
-def run_task(goal: str, max_steps: int):
+def run_task(goal: str, max_steps: int, eco_mode: bool = False):
     """Run autonomous task"""
     # Load env
     load_dotenv()
@@ -21,6 +21,9 @@ def run_task(goal: str, max_steps: int):
     if not api_key:
         logger.error("Please set ARK_API_KEY environment variable or in .env file")
         return
+
+    if eco_mode:
+        logger.info("Running in Eco Mode")
 
     logger.info("Initializing Controller...")
     controller = AndroidController()
@@ -34,7 +37,7 @@ def run_task(goal: str, max_steps: int):
 
     logger.info("Initializing Agent...")
     client = VolcengineGUIClient()
-    agent = AutonomousAgent(controller, client)
+    agent = AutonomousAgent(controller, client, eco_mode=eco_mode)
 
     logger.info(f"Starting task: {goal}")
     try:
@@ -51,6 +54,7 @@ def main():
     run_parser = subparsers.add_parser("run", help="Run an autonomous task")
     run_parser.add_argument("goal", help="Task goal description (e.g. 'Open WeChat')")
     run_parser.add_argument("--steps", type=int, default=50, help="Max steps")
+    run_parser.add_argument("--eco", action="store_true", help="Enable Eco Mode")
 
     # Command: server (Start MCP Server)
     server_parser = subparsers.add_parser("server", help="Start MCP Server")
@@ -58,7 +62,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "run":
-        run_task(args.goal, args.steps)
+        run_task(args.goal, args.steps, eco_mode=args.eco)
     elif args.command == "server":
         from android_phone.server import app
         app.run()

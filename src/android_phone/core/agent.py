@@ -11,9 +11,10 @@ from android_phone.integrations.parser import parse_action_from_text
 logger = logging.getLogger(__name__)
 
 class AutonomousAgent:
-    def __init__(self, controller: AndroidController, client: VolcengineGUIClient):
+    def __init__(self, controller: AndroidController, client: VolcengineGUIClient, eco_mode: bool = False):
         self.controller = controller
         self.client = client
+        self.eco_mode = eco_mode
         self.screenshot_dir = os.path.join(os.getcwd(), ".active_screenshots")
         if not os.path.exists(self.screenshot_dir):
             os.makedirs(self.screenshot_dir, exist_ok=True)
@@ -30,6 +31,13 @@ class AutonomousAgent:
         # Initial instruction
         instruction = goal
         
+        # Token usage stats
+        total_usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0
+        }
+        
         for step in range(max_steps):
             logger.info(f"Step {step + 1}/{max_steps}")
             
@@ -37,7 +45,11 @@ class AutonomousAgent:
             # Use lower quality/scale for API efficiency if needed, but 720p is good
             try:
                 # scale=0.5 for speed and token saving (usually sufficient for UI)
-                image_b64 = self.controller.get_screenshot(scale=0.5, quality=60)
+                # In eco mode, use lower resolution and quality
+                if self.eco_mode:
+                    image_b64 = self.controller.get_screenshot(scale=0.3, quality=50)
+                else:
+                    image_b64 = self.controller.get_screenshot(scale=0.5, quality=60)
             except Exception as e:
                 logger.error(f"Failed to capture screenshot: {e}")
                 return f"Error: Failed to capture screenshot - {e}"
@@ -54,6 +66,14 @@ class AutonomousAgent:
             action_data = response.get("action_parsed")
             thought = response.get("thought")
             raw_content = response.get("raw_content", "")
+            usage = response.get("usage", {})
+            
+            # Update token stats
+            if usage:
+                total_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
+                total_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+                total_usage["total_tokens"] += usage.get("total_tokens", 0)
+                logger.info(f"Token Usage (Step): {usage}")
             
             logger.info(f"Thought: {thought}")
             if not action_data:
@@ -75,7 +95,7 @@ class AutonomousAgent:
             if action_type == "finished":
                 content = action_data.get("content", "")
                 logger.info(f"Task Finished: {content}")
-                return f"Task Completed: {content}"
+                return f"Task Completed: {content}\nTotal Token Usage: {total_usage}"
             
             elif action_type == "click":
                 success = self._handle_click(action_data)
@@ -145,7 +165,7 @@ class AutonomousAgent:
             logger.info(f"Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 
-        return "Max steps reached without completion."
+        return f"Max steps reached without completion.\nTotal Token Usage: {total_usage}"
 
     def _denormalize(self, x: int, y: int) -> tuple[int, int]:
         return self.controller.denormalize_coordinates(x, y, scale=1000)

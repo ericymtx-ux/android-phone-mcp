@@ -36,7 +36,7 @@ def run_task(goal: str, max_steps: int, eco_mode: bool = False):
         return
 
     logger.info("Initializing Agent...")
-    client = VolcengineGUIClient()
+    client = VolcengineGUIClient(eco_mode=eco_mode)
     agent = AutonomousAgent(controller, client, eco_mode=eco_mode)
 
     logger.info(f"Starting task: {goal}")

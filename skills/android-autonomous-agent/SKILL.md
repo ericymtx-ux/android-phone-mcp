@@ -15,15 +15,15 @@ This skill allows you to execute complex, multi-step operations on an Android ph
 
 ## Usage
 
-You can invoke this skill by describing the task you want to perform.
-
 ```bash
-/android-autonomous-agent "Open WeChat and send a message to 'Mom' saying 'I'll be late'"
+# Basic usage
+android-agent run "Open WeChat and send a message to Mom saying I'll be home for dinner"
+
+# Eco Mode (Saves tokens by using lower resolution screenshots and stricter history pruning)
+android-agent run "Open stock app and check K-line" --eco
 ```
 
-Or simply ask Claude to do it:
-
-"Help me find the K-line graph for Apple stock in the Tongdaxin app on my phone."
+## Action Space
 
 ## How it works
 1.  **Observation**: Captures a screenshot of the current device state.

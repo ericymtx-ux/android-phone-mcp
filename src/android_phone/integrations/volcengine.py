@@ -15,9 +15,10 @@ class VolcengineGUIClient:
     
     API_URL = "https://ark.cn-beijing.volces.com/api/v3/chat/completions" # Use Chat API as per updated docs logic
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "doubao-seed-1-6-vision-250815"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "doubao-seed-1-6-vision-250815", eco_mode: bool = False):
         self.api_key = api_key or os.environ.get("ARK_API_KEY")
         self.model = model
+        self.eco_mode = eco_mode
         self.history: List[Dict[str, Any]] = [] # Conversation history
         
     def reset_session(self):
@@ -116,8 +117,12 @@ class VolcengineGUIClient:
         
         # Prune history images (keep max 4 previous images + 1 current = 5 total)
         # Also prune history length to avoid token limit issues
-        pruned_history = self._prune_history_turns(self.history, max_turns=10)
-        pruned_history = self._prune_history_images(pruned_history, max_images=4)
+        # In eco mode, we can be more aggressive with pruning
+        max_turns = 5 if self.eco_mode else 10
+        max_images = 2 if self.eco_mode else 4
+        
+        pruned_history = self._prune_history_turns(self.history, max_turns=max_turns)
+        pruned_history = self._prune_history_images(pruned_history, max_images=max_images)
         
         # Construct full messages: System + Pruned History + New User Message
         messages = [

@@ -109,6 +109,14 @@ Thought: <思考过程>
 Action: <动作>(<参数>)
 ```
 
+```bash
+# 基础用法
+android-agent run "打开微信给妈妈发消息说今晚回家吃饭"
+
+# Eco 模式 (更省 Token，但可能执行步骤稍多)
+android-agent run "打开通达信看行情" --eco
+```
+
 **支持的动作**:
 - `click(point='<point>x y</point>')` - 点击坐标
 - `type(content='文本')` - 输入文本

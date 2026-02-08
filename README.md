@@ -133,10 +133,7 @@ android-agent run "打开通达信看行情" --eco
 - 如果任务涉及截图，截图文件会自动保存到 `.active_screenshots/` 目录。
 - 任务完成后，CLI 会返回最终结果文本。
 
-## 📚 参考项目
+## 📚 参考文档
 
-本项目的基础设备控制能力参考并使用了 [phone-mcp](https://github.com/hao-cyber/phone-mcp) 的功能。
-
-其他参考文档：
 - [Android 开发者工具 (ADB)](https://developer.android.com/tools?hl=zh-cn)
 - [火山引擎 GUI Agent API 文档](https://www.volcengine.com/docs/82379/1584296?lang=zh)

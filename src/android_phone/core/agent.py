@@ -160,8 +160,8 @@ class AutonomousAgent:
             # Update instruction for next turn
             instruction = f"Action '{action_type}' executed. Result: {result_msg}. Continue to {goal}."
             
-            # Short wait for UI to settle (random 1-3s)
-            sleep_time = random.uniform(1.0, 3.0)
+            # Short wait for UI to settle (random 0.1-1s)
+            sleep_time = random.uniform(0.1, 1.0)
             logger.info(f"Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 

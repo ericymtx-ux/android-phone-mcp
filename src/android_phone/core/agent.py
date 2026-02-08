@@ -5,6 +5,7 @@ import os
 from typing import Dict, Any, Optional
 
 from android_phone.core.controller import AndroidController
+from android_phone.core.logger import TaskLogger
 from android_phone.integrations.volcengine import VolcengineGUIClient
 from android_phone.integrations.parser import parse_action_from_text
 
@@ -18,12 +19,17 @@ class AutonomousAgent:
         self.screenshot_dir = os.path.join(os.getcwd(), ".active_screenshots")
         if not os.path.exists(self.screenshot_dir):
             os.makedirs(self.screenshot_dir, exist_ok=True)
+        
+        self.task_logger = TaskLogger(log_dir=".log", expire_days=10)
 
     def run(self, goal: str, max_steps: int = 50) -> str:
         """
         Run the autonomous task loop.
         """
         logger.info(f"Starting autonomous task: {goal}")
+        
+        task_id = self.task_logger.generate_task_id()
+        self.task_logger.log_task_start(task_id, goal)
         
         # 1. Reset Session
         self.client.reset_session()
@@ -75,6 +81,17 @@ class AutonomousAgent:
                 total_usage["total_tokens"] += usage.get("total_tokens", 0)
                 logger.info(f"Token Usage (Step): {usage}")
             
+            # Log step details
+            self.task_logger.log_step(
+                task_id=task_id,
+                step=step,
+                instruction=instruction,
+                image_b64=image_b64,
+                model_response=response,
+                usage=usage,
+                action=action_data
+            )
+            
             logger.info(f"Thought: {thought}")
             if not action_data:
                 logger.warning(f"No structured action found. Raw content: {raw_content}")
@@ -95,6 +112,7 @@ class AutonomousAgent:
             if action_type == "finished":
                 content = action_data.get("content", "")
                 logger.info(f"Task Finished: {content}")
+                self.task_logger.log_task_end(task_id, content, total_usage, step + 1)
                 return f"Task Completed: {content}\nTotal Token Usage: {total_usage}"
             
             elif action_type == "click":
@@ -165,7 +183,9 @@ class AutonomousAgent:
             logger.info(f"Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 
-        return f"Max steps reached without completion.\nTotal Token Usage: {total_usage}"
+        result = f"Max steps reached without completion.\nTotal Token Usage: {total_usage}"
+        self.task_logger.log_task_end(task_id, result, total_usage, max_steps)
+        return result
 
     def _denormalize(self, x: int, y: int) -> tuple[int, int]:
         return self.controller.denormalize_coordinates(x, y, scale=1000)

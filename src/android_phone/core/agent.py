@@ -22,9 +22,10 @@ class AutonomousAgent:
         
         self.task_logger = TaskLogger(log_dir=".log", expire_days=10)
 
-    def run(self, goal: str, max_steps: int = 50) -> str:
+    def run(self, goal: str, max_steps: int = 50) -> Dict[str, Any]:
         """
         Run the autonomous task loop.
+        Returns a dictionary containing result, usage stats, and step count.
         """
         logger.info(f"Starting autonomous task: {goal}")
         
@@ -58,7 +59,12 @@ class AutonomousAgent:
                     image_b64 = self.controller.get_screenshot(scale=0.5, quality=60)
             except Exception as e:
                 logger.error(f"Failed to capture screenshot: {e}")
-                return f"Error: Failed to capture screenshot - {e}"
+                return {
+                    "status": "error",
+                    "result": f"Error: Failed to capture screenshot - {e}",
+                    "total_usage": total_usage,
+                    "steps": step + 1
+                }
 
             # 3. Call Volcengine
             try:
@@ -66,7 +72,12 @@ class AutonomousAgent:
                 response = self.client.ask(instruction, image_b64)
             except Exception as e:
                 logger.error(f"Volcengine API failed: {e}")
-                return f"Error: Volcengine API failed - {e}"
+                return {
+                    "status": "error",
+                    "result": f"Error: Volcengine API failed - {e}",
+                    "total_usage": total_usage,
+                    "steps": step + 1
+                }
 
             # 4. Parse and Execute
             action_data = response.get("action_parsed")
@@ -113,7 +124,12 @@ class AutonomousAgent:
                 content = action_data.get("content", "")
                 logger.info(f"Task Finished: {content}")
                 self.task_logger.log_task_end(task_id, content, total_usage, step + 1)
-                return f"Task Completed: {content}\nTotal Token Usage: {total_usage}"
+                return {
+                    "status": "completed",
+                    "result": content,
+                    "total_usage": total_usage,
+                    "steps": step + 1
+                }
             
             elif action_type == "click":
                 success = self._handle_click(action_data)
@@ -130,6 +146,10 @@ class AutonomousAgent:
                 # Let's map to normal click for now or ignore.
                 success = self._handle_click(action_data)
                 result_msg = "Right click (mapped to tap) successful" if success else "Right click failed"
+
+            elif action_type == "long_press":
+                success = self._handle_long_press(action_data)
+                result_msg = "Long press successful" if success else "Long press failed"
 
             elif action_type == "type":
                 content = action_data.get("content", "")
@@ -183,9 +203,14 @@ class AutonomousAgent:
             logger.info(f"Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 
-        result = f"Max steps reached without completion.\nTotal Token Usage: {total_usage}"
+        result = f"Max steps reached without completion."
         self.task_logger.log_task_end(task_id, result, total_usage, max_steps)
-        return result
+        return {
+            "status": "failed",
+            "result": result,
+            "total_usage": total_usage,
+            "steps": max_steps
+        }
 
     def _denormalize(self, x: int, y: int) -> tuple[int, int]:
         return self.controller.denormalize_coordinates(x, y, scale=1000)
@@ -260,3 +285,12 @@ class AutonomousAgent:
         ex, ey = self._denormalize(end_x, end_y)
         
         return self.controller.swipe(sx, sy, ex, ey)
+
+    def _handle_long_press(self, action: Dict[str, Any]) -> bool:
+        """Handle long_press action."""
+        x = action.get("x")
+        y = action.get("y")
+        if x is None or y is None:
+            return False
+        px, py = self._denormalize(x, y)
+        return self.controller.long_press(px, py)

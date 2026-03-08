@@ -16,6 +16,7 @@ Action: click(point='<point>500 500</point>')
 click(point='<point>x1 y1</point>')
 left_double(point='<point>x1 y1</point>')
 right_single(point='<point>x1 y1</point>')
+long_press(point='<point>x1 y1</point>')  # Long press to trigger context menu / paste
 drag(start_point='<point>x1 y1</point>', end_point='<point>x2 y2</point>')
 hotkey(key='home') # Press the home key to go back to the desktop. Supports: home, back, recent.
 type(content='xxx') # Use escape characters \\', \\", and \\n in content part.

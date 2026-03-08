@@ -218,6 +218,28 @@ class AndroidController:
             logger.error(f"Click failed: {e}")
             return False
 
+    def long_press(self, x: int, y: int, duration: float = 0.8) -> bool:
+        """
+        Long press at coordinates.
+        
+        Args:
+            x: X coordinate in pixels
+            y: Y coordinate in pixels
+            duration: Press duration in seconds (default 0.8s for Android long-press)
+        """
+        try:
+            # uiautomator2 supports long_click directly
+            if hasattr(self.device, 'long_click'):
+                self.device.long_click(x, y, duration=duration)
+            else:
+                # Fallback: use swipe with same start/end to simulate hold
+                self.device.swipe(x, y, x, y, duration)
+            logger.info(f"Long press at ({x}, {y}) for {duration}s")
+            return True
+        except Exception as e:
+            logger.error(f"Long press failed: {e}")
+            return False
+
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> bool:
         """Swipe from (x1, y1) to (x2, y2)."""
         try:

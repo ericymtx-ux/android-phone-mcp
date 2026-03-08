@@ -15,6 +15,31 @@ from android_phone.integrations.parser import parse_action_from_text
 class TestParseActionFromText:
     """测试 parse_action_from_text 函数"""
 
+    def test_parse_long_press_action(self):
+        """测试长按动作解析"""
+        text = """Thought: I need to long press to trigger the paste menu
+Action: long_press(point='<point>500 700</point>')"""
+        
+        result = parse_action_from_text(text)
+        
+        assert "long press" in result["thought"].lower()
+        assert result["action_raw"] == "long_press(point='<point>500 700</point>')"
+        assert result["action_parsed"]["type"] == "long_press"
+        assert result["action_parsed"]["x"] == 500
+        assert result["action_parsed"]["y"] == 700
+
+    def test_fallback_long_press_parsing(self):
+        """测试 long_press 的 fallback 解析"""
+        text = """Some text without Thought/Action headers
+long_press(point='<point>300 400</point>')"""
+        
+        result = parse_action_from_text(text)
+        
+        # Fallback should find long_press in known_funcs
+        assert result["action_parsed"]["type"] == "long_press"
+        assert result["action_parsed"]["x"] == 300
+        assert result["action_parsed"]["y"] == 400
+
     def test_parse_click_action(self):
         """测试点击动作解析"""
         text = """Thought: I need to click on the button at position 500, 300

@@ -35,7 +35,7 @@ def parse_action_from_text(text: str) -> Dict[str, Any]:
         # Fallback: try to find the function call pattern directly in the text
         # Look for pattern: func_name(arg=...)
         # We look for known function names
-        known_funcs = ["click", "left_double", "right_single", "drag", "hotkey", "type", "scroll", "wait", "finished"]
+        known_funcs = ["click", "left_double", "right_single", "drag", "hotkey", "type", "scroll", "wait", "finished", "long_press"]
         func_pattern = r'(' + '|'.join(known_funcs) + r')\((.*)\)'
         func_match_fallback = re.search(func_pattern, text, re.DOTALL)
         if func_match_fallback:
